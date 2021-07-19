@@ -17,6 +17,7 @@ import { Address, MultisigAccountGraphInfo, MultisigAccountInfo, NetworkType } f
 // internal dependencies
 import { AccountModel } from '@/core/database/entities/AccountModel';
 import { Signer } from '@/store/Account';
+import { CommonHelpers } from '@/core/utils/CommonHelpers';
 
 export class MultisigService {
     /**
@@ -103,7 +104,64 @@ export class MultisigService {
         });
         return addressesFromNextLevel;
     }
+    public getMultisigChildren(multisigAccountGraphInfo: MultisigAccountInfo[][]): string[] {
+        if (multisigAccountGraphInfo && !!multisigAccountGraphInfo.length) {
+            const tree = [];
+            multisigAccountGraphInfo.map((level: MultisigAccountInfo[]) => {
+                let levelToMap = [];
 
+                if (level && !level[0]) {
+                    levelToMap.push(level);
+                } else {
+                    levelToMap = level;
+                }
+                levelToMap.map((entry: MultisigAccountInfo) => {
+                    if (!entry.cosignatoryAddresses.length) {
+                        tree.push({
+                            address: entry.accountAddress.plain(),
+                            children: [],
+                        });
+                    } else {
+                        // find the entry matching with address matching cosignatory address and update his children
+                        const updateRecursively = (address, object) => (obj) => {
+                            if (obj.address === address) {
+                                obj.children.push(object);
+                            } else if (obj.children) {
+                                obj.children.forEach(updateRecursively(address, object));
+                            }
+                        };
+                        // @ts-ignore
+                        entry.cosignatoryAddresses.forEach((addressVal) => {
+                            tree.forEach(
+                                updateRecursively(addressVal['address'], {
+                                    // @ts-ignore
+                                    address: entry.accountAddress.plain(),
+                                    // @ts-ignore
+                                    children: [],
+                                }),
+                            );
+                        });
+                    }
+                });
+            });
+            return tree;
+        }
+        return [];
+    }
+    public getMultisigChildrenAddresses(multisigAccountGraphInfo: MultisigAccountInfo[][]) {
+        const addresses = [];
+
+        if (multisigAccountGraphInfo) {
+            const mutlisigChildrenTree = this.getMultisigChildren(multisigAccountGraphInfo);
+            if (mutlisigChildrenTree && mutlisigChildrenTree.length) {
+                // @ts-ignore
+                CommonHelpers.parseObjectProperties(mutlisigChildrenTree[0].children, (k, prop) => {
+                    addresses.push(Address.createFromRawAddress(prop));
+                });
+            }
+            return addresses;
+        }
+    }
     private getAccountLabel(address: Address, accounts: AccountModel[]): string {
         const account = accounts.find((wlt) => address.plain() === wlt.address);
         return (account && account.name) || address.plain();

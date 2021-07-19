@@ -48,7 +48,7 @@ import QRCodeDisplay from '@/components/QRCode/QRCodeDisplay/QRCodeDisplay.vue';
 import { AccountService } from '@/services/AccountService';
 import { LedgerService } from '@/services/LedgerService';
 import { AccountMetadataTransaction } from 'symbol-sdk';
-
+import { MultisigService } from '@/services/MultisigService';
 @Component({
     components: {
         TransactionDetails,
@@ -64,6 +64,7 @@ import { AccountMetadataTransaction } from 'symbol-sdk';
             networkType: 'network/networkType',
             generationHash: 'network/generationHash',
             currentAccountMultisigInfo: 'account/currentAccountMultisigInfo',
+            multisigAccountGraphInfo: 'account/multisigAccountGraphInfo',
         }),
     },
 })
@@ -83,6 +84,7 @@ export class ModalTransactionCosignatureTs extends Vue {
      */
     transaction: AggregateTransaction = null;
 
+    public multisigAccountGraphInfo: MultisigAccountInfo[][];
     /**
      * Data is loading
      */
@@ -209,14 +211,19 @@ export class ModalTransactionCosignatureTs extends Vue {
     }
 
     public get needsCosignature(): boolean {
+        if (this.currentAccountMultisigInfo && this.currentAccountMultisigInfo.isMultisig()) {
+            return false;
+        }
         // Multisig account can not sign
         const currentPubAccount = AccountModel.getObjects(this.currentAccount).publicAccount;
         if (!this.transaction.signedByAccount(currentPubAccount)) {
-            if (this.currentAccountMultisigInfo && this.currentAccountMultisigInfo.isMultisig()) {
-                return false;
-            }
             const cosignerAddresses = this.transaction.innerTransactions.map((t) => t.signer?.address);
             const cosignList = [];
+
+            const multisignService = new MultisigService();
+            const mutlisigChildrenTree = multisignService.getMultisigChildren(this.multisigAccountGraphInfo);
+            const mutlisigChildren = multisignService.getMultisigChildrenAddresses(this.multisigAccountGraphInfo);
+
             this.transaction.innerTransactions.forEach((t) => {
                 if (t.type === TransactionType.MULTISIG_ACCOUNT_MODIFICATION.valueOf()) {
                     cosignList.push(...(t as MultisigAccountModificationTransaction).addressAdditions);
@@ -244,7 +251,8 @@ export class ModalTransactionCosignatureTs extends Vue {
                     return (
                         c.plain() === this.currentAccount.address ||
                         (this.currentAccountMultisigInfo &&
-                            this.currentAccountMultisigInfo.multisigAddresses.find((m) => c.equals(m)) !== undefined)
+                            this.currentAccountMultisigInfo.multisigAddresses.find((m) => c.equals(m)) !== undefined) ||
+                        (mutlisigChildrenTree && mutlisigChildren.some((address) => address.equals(c)))
                     );
                 }
                 return false;

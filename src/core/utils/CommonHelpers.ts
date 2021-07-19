@@ -47,4 +47,13 @@ export class CommonHelpers {
             await this.sleep(interval);
         }
     }
+    public static parseObjectProperties(obj, parse) {
+        for (const k in obj) {
+            if (typeof obj[k] === 'object' && obj[k] !== null) {
+                this.parseObjectProperties(obj[k], parse);
+            } else if (Object.prototype.hasOwnProperty.call(obj, k)) {
+                parse(k, obj[k]);
+            }
+        }
+    }
 }

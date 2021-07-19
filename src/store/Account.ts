@@ -63,6 +63,7 @@ interface AccountState {
     currentAccountAddress: Address;
     currentAccountMultisigInfo: MultisigAccountInfo;
     multisigAccountGraph: MultisigAccountInfo[][];
+    multisigAccountGraphInfo: MultisigAccountInfo[];
     isCosignatoryMode: boolean;
     signers: Signer[];
     currentSigner: Signer;
@@ -105,6 +106,7 @@ const accountState: AccountState = {
     subscriptions: {},
     currentRecipient: null,
     multisigAccountGraph: null,
+    multisigAccountGraphInfo: null,
     addressesList: [],
     optInAddressesList: [],
     selectedAddressesToInteract: [],
@@ -146,6 +148,7 @@ export default {
         currentRecipient: (state: AccountState) => state.currentRecipient,
         currentAccountAliases: (state: AccountState) => state.currentAccountAliases,
         multisigAccountGraph: (state: AccountState) => state.multisigAccountGraph,
+        multisigAccountGraphInfo: (state: AccountState) => state.multisigAccountGraphInfo,
         addressesList: (state: AccountState) => state.addressesList,
         optInAddressesList: (state: AccountState) => state.optInAddressesList,
         selectedAddressesToInteract: (state: AccountState) => state.selectedAddressesToInteract,
@@ -210,6 +213,9 @@ export default {
 
         multisigAccountGraph: (state: AccountState, multisigAccountGraph) => {
             state.multisigAccountGraph = multisigAccountGraph;
+        },
+        multisigAccountGraphInfo: (state: AccountState, multisigAccountGraphInfo) => {
+            state.multisigAccountGraphInfo = multisigAccountGraphInfo;
         },
         updateSubscriptions: (state: AccountState, payload: { address: string; subscriptions: SubscriptionType }) => {
             const { address, subscriptions } = payload;
@@ -406,8 +412,8 @@ export default {
                     .getMultisigAccountGraphInfo(currentAccountAddress)
                     .pipe(
                         map((g) => {
-                            // sorted array to be represented in multisig tree
                             commit('multisigAccountGraph', g.multisigEntries);
+                            commit('multisigAccountGraphInfo', MultisigService.getMultisigInfoFromMultisigGraphInfo(g));
                             return MultisigService.getMultisigInfoFromMultisigGraphInfo(g);
                         }),
                         catchError(() => {
@@ -519,6 +525,7 @@ export default {
                     map((g) => {
                         // sorted array to be represented in multisig tree
                         commit('multisigAccountGraph', g.multisigEntries);
+                        commit('multisigAccountGraphInfo', MultisigService.getMultisigGraphArraySorted(g.multisigEntries));
                         return MultisigService.getMultisigInfoFromMultisigGraphInfo(g);
                     }),
                     catchError(() => {

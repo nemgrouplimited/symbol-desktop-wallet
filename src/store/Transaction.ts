@@ -27,6 +27,7 @@ import {
     Page,
     TransactionStatus,
     Order,
+    MultisigAccountInfo,
 } from 'symbol-sdk';
 import { combineLatest, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
@@ -35,7 +36,7 @@ import * as _ from 'lodash';
 // internal dependencies
 import { AwaitLock } from './AwaitLock';
 import { TransactionFilterService } from '@/services/TransactionFilterService';
-
+import { MultisigService } from '@/services/MultisigService';
 const Lock = AwaitLock.create();
 
 export enum TransactionGroupState {
@@ -214,8 +215,9 @@ export default {
             {
                 filterOption,
                 currentSignerAddress,
+                multisigAddresses = [],
                 shouldFilterOptionChange = true,
-            }: { filterOption?: FilterOption; currentSignerAddress: string; shouldFilterOptionChange: boolean },
+            }: { filterOption?: FilterOption; currentSignerAddress: string; multisigAddresses: []; shouldFilterOptionChange: boolean },
         ) => {
             if (shouldFilterOptionChange) {
                 if (filterOption) {
@@ -226,6 +228,12 @@ export default {
             }
 
             state.filteredTransactions = TransactionFilterService.filter(state, currentSignerAddress);
+            if (!!multisigAddresses.length) {
+                multisigAddresses.forEach((address) => {
+                    state.filteredTransactions = [...state.filteredTransactions, ...TransactionFilterService.filter(state, address)];
+                });
+                state.filteredTransactions = TransactionFilterService.filter(state, currentSignerAddress);
+            }
         },
     },
     actions: {
@@ -285,6 +293,12 @@ export default {
             const subscriptions: Observable<Transaction[]>[] = [];
             commit('isFetchingTransactions', true);
 
+            const multisigAccountGraphInfo: MultisigAccountInfo[][] = rootGetters['account/multisigAccountGraphInfo'];
+            const multisignService = new MultisigService();
+            let multisigChildrenAddresses = [];
+            if (multisigAccountGraphInfo) {
+                multisigChildrenAddresses = multisignService.getMultisigChildrenAddresses(multisigAccountGraphInfo);
+            }
             subscriptions.push(
                 subscribeTransactions(
                     TransactionGroupState.confirmed,
@@ -311,27 +325,30 @@ export default {
                         }),
                     ),
                 );
-
-                subscriptions.push(
-                    subscribeTransactions(
-                        TransactionGroupState.partial,
-                        transactionRepository.search({
-                            group: TransactionGroup.Partial,
-                            address: currentSignerAddress,
-                            pageSize: 100,
-                            pageNumber: 1, // not paginating
-                            order: Order.Desc,
-                        }),
-                    ),
-                );
+                if (!!multisigChildrenAddresses.length) {
+                    multisigChildrenAddresses.forEach((address) => {
+                        subscriptions.push(
+                            subscribeTransactions(
+                                TransactionGroupState.partial,
+                                transactionRepository.search({
+                                    group: TransactionGroup.Partial,
+                                    address: address,
+                                    pageSize: 100,
+                                    pageNumber: 1, // not paginating
+                                    order: Order.Desc,
+                                }),
+                            ),
+                        );
+                    });
+                }
             }
-
             combineLatest(subscriptions).subscribe({
                 complete: () => {
                     commit('setAllTransactions');
                     commit('filterTransactions', {
                         filterOption: null,
                         currentSignerAddress: currentSignerAddress.plain(),
+                        multisigAddresses: multisigChildrenAddresses,
                         shouldFilterOptionChange: false,
                     });
                     commit('isFetchingTransactions', false);
@@ -425,6 +442,7 @@ export default {
                 commit('filterTransactions', {
                     filterOption: null,
                     currentSignerAddress: currentSignerAddress.plain(),
+                    multisigAddresses: [],
                     shouldFilterOptionChange: false,
                 });
             }
@@ -458,6 +476,7 @@ export default {
             commit('filterTransactions', {
                 filterOption: null,
                 currentSignerAddress: currentSignerAddress.plain(),
+                multisigAddresses: [],
                 shouldFilterOptionChange: false,
             });
         },
@@ -531,6 +550,7 @@ export default {
             commit('filterTransactions', {
                 filterOption: null,
                 currentSignerAddress: currentSignerAddress.plain(),
+                multisigAddresses: [],
                 shouldFilterOptionChange: false,
             });
         },

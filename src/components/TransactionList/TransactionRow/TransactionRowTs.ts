@@ -46,9 +46,10 @@ import { TransactionViewFactory } from '@/core/transactions/TransactionViewFacto
 import { TransactionView } from '@/core/transactions/TransactionView';
 import { NetworkConfigurationModel } from '../../../core/database/entities/NetworkConfigurationModel';
 import { ProfileModel } from '@/core/database/entities/ProfileModel';
-import { DateTimeFormatter } from '@js-joda/core';
 import { AccountModel } from '@/core/database/entities/AccountModel';
 import { TransactionStatus as TransactionStatusEnum } from '@/core/transactions/TransactionStatus';
+import { MultisigService } from '@/services/MultisigService';
+import moment from 'moment';
 
 export interface TooltipMosaics {
     name: string;
@@ -68,6 +69,7 @@ export interface TooltipMosaics {
         currentAccount: 'account/currentAccount',
         currentAccountMultisigInfo: 'account/currentAccountMultisigInfo',
         balanceMosaics: 'mosaic/balanceMosaics',
+        multisigAccountGraphInfo: 'account/multisigAccountGraphInfo',
     }),
 })
 export class TransactionRowTs extends Vue {
@@ -135,6 +137,9 @@ export class TransactionRowTs extends Vue {
      * @type {boolean}
      */
     private transactionSigningFlag: boolean = false;
+
+    private multisigAccountGraphInfo: MultisigAccountInfo[][];
+
     /// region computed properties getter/setter
     public get view(): TransactionView<Transaction> {
         return TransactionViewFactory.getView(this.$store, this.transaction);
@@ -271,6 +276,10 @@ export class TransactionRowTs extends Vue {
                 }
                 const cosignList = [];
                 const cosignerAddresses = this.aggregateTransactionDetails.innerTransactions.map((t) => t.signer?.address);
+                const multisignService = new MultisigService();
+                const mutlisigChildrenTree = multisignService.getMultisigChildren(this.multisigAccountGraphInfo);
+                const mutlisigChildren = multisignService.getMultisigChildrenAddresses(this.multisigAccountGraphInfo);
+
                 this.aggregateTransactionDetails.innerTransactions.forEach((t) => {
                     if (t.type === TransactionType.MULTISIG_ACCOUNT_MODIFICATION.valueOf()) {
                         cosignList.push(...(t as MultisigAccountModificationTransaction).addressAdditions);
@@ -289,7 +298,8 @@ export class TransactionRowTs extends Vue {
                         return (this.transactionSigningFlag =
                             c.plain() === this.currentAccount.address ||
                             (this.currentAccountMultisigInfo &&
-                                this.currentAccountMultisigInfo.multisigAddresses.find((m) => c.equals(m)) !== undefined));
+                                this.currentAccountMultisigInfo.multisigAddresses.find((m) => c.equals(m)) !== undefined) ||
+                            (mutlisigChildrenTree && mutlisigChildren.some((address) => address.equals(c))));
                     }
                     this.transactionSigningFlag = false;
                     return;
@@ -456,27 +466,19 @@ export class TransactionRowTs extends Vue {
         return this.explorerBaseUrl.replace(/\/+$/, '') + '/transactions/' + this.transaction.transactionInfo.hash;
     }
 
-    public get deadline() {
-        return this.transaction.deadline
-            .toLocalDateTime(this.networkConfiguration.epochAdjustment)
-            .format(DateTimeFormatter.ofPattern('yyyy-MM-dd HH:mm:ss'));
-    }
     public get date() {
         if (this.transaction instanceof AggregateTransaction) {
-            return this.transaction.deadline
-                .toLocalDateTime(this.networkConfiguration.epochAdjustment)
-                .minusHours(48)
-                .format(DateTimeFormatter.ofPattern('yyyy-MM-dd HH:mm:ss'));
+            return moment(
+                String(this.transaction.deadline.toLocalDateTime(this.networkConfiguration.epochAdjustment).minusHours(48)),
+            ).format('YYYY-MM-DD HH:mm:ss');
         } else if (this.transaction.type === TransactionType.HASH_LOCK) {
-            return this.transaction.deadline
-                .toLocalDateTime(this.networkConfiguration.epochAdjustment)
-                .minusHours(6)
-                .format(DateTimeFormatter.ofPattern('yyyy-MM-dd HH:mm:ss'));
+            return moment(
+                String(this.transaction.deadline.toLocalDateTime(this.networkConfiguration.epochAdjustment).minusHours(6)),
+            ).format('YYYY-MM-DD HH:mm:ss');
         } else {
-            return this.transaction.deadline
-                .toLocalDateTime(this.networkConfiguration.epochAdjustment)
-                .minusHours(2)
-                .format(DateTimeFormatter.ofPattern('yyyy-MM-dd HH:mm:ss'));
+            return moment(
+                String(this.transaction.deadline.toLocalDateTime(this.networkConfiguration.epochAdjustment).minusHours(2)),
+            ).format('YYYY-MM-DD HH:mm:ss');
         }
     }
 }
