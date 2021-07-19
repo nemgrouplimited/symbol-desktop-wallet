@@ -155,6 +155,8 @@ const defaultNetworkConfig: Record<number, NetworkConfig> = {
     104: defaultMainnetNetworkConfig,
 };
 
-const resolvedNetworkConfig: NetworkConfig = window['networkConfig'] || defaultNetworkConfig;
+const resolvedNetworkConfig: NetworkConfig = window['networkConfig']
+    ? { ...defaultNetworkConfig, ...window['networkConfig'] }
+    : defaultNetworkConfig;
 console.log('networkConfig resolved!', resolvedNetworkConfig);
 export const networkConfig = resolvedNetworkConfig;

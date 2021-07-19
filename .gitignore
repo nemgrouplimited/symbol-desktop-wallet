@@ -24,3 +24,5 @@ template.config.js
 .env
 keys-whitelist.json
 keys-finance.json
+/target/
+/logs.log
