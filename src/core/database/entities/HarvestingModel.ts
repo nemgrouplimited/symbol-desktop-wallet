@@ -21,6 +21,10 @@ export class HarvestingModel {
     public readonly isPersistentDelReqSent?: boolean;
     public readonly selectedHarvestingNode?: NodeModel;
     public readonly encRemotePrivateKey?: string;
+    public readonly newEncRemotePrivateKey?: string;
+    public readonly newRemotePublicKey?: string;
     public readonly encVrfPrivateKey?: string;
+    public readonly newEncVrfPrivateKey?: string;
+    public readonly newVrfPublicKey?: string;
     public readonly delegatedHarvestingRequestFailed?: boolean;
 }

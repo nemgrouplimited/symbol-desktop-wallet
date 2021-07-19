@@ -486,6 +486,25 @@ export class FormPersistentDelegationRequestTransactionTs extends FormTransactio
     }
     public announce(service: TransactionAnnouncerService, transactionSigner: TransactionSigner): Observable<Observable<BroadcastResult>[]> {
         const accountAddress = this.currentSignerHarvestingModel.accountAddress;
+
+        // store new vrf Key info in local
+        if (this.vrfPrivateKeyTemp) {
+            this.saveVrfKeyInfo(
+                accountAddress,
+                Crypto.encrypt(this.newVrfKeyAccount.privateKey, this.password),
+                this.newVrfKeyAccount.publicKey,
+            );
+        }
+
+        // store new remote Key info in local
+        if (this.remotePrivateKeyTemp) {
+            this.saveRemoteKeyInfo(
+                accountAddress,
+                Crypto.encrypt(this.newRemoteAccount.privateKey, this.password),
+                this.newRemoteAccount.publicKey,
+            );
+        }
+
         if (this.action === HarvestingAction.ACTIVATE) {
             // announce the persistent Delegation Request
             return this.getPersistentDelegationRequestTransaction(transactionSigner).pipe(
@@ -674,8 +693,18 @@ export class FormPersistentDelegationRequestTransactionTs extends FormTransactio
     public saveVrfKey(accountAddress: string, encVrfPrivateKey: string) {
         this.$store.dispatch('harvesting/UPDATE_VRF_ACCOUNT_PRIVATE_KEY', { accountAddress, encVrfPrivateKey });
     }
+    public saveVrfKeyInfo(accountAddress: string, newEncVrfPrivateKey: string, newVrfPublicKey) {
+        this.$store.dispatch('harvesting/UPDATE_NEW_VRF_KEY_INFO', { accountAddress, newEncVrfPrivateKey, newVrfPublicKey });
+    }
     public saveRemoteKey(accountAddress: string, encRemotePrivateKey: string) {
         this.$store.dispatch('harvesting/UPDATE_REMOTE_ACCOUNT_PRIVATE_KEY', { accountAddress, encRemotePrivateKey });
+    }
+    public saveRemoteKeyInfo(accountAddress: string, newEncRemotePrivateKey: string, newRemotePublicKey) {
+        this.$store.dispatch('harvesting/UPDATE_NEW_REMOTE_KEY_INFO', {
+            accountAddress,
+            newEncRemotePrivateKey,
+            newRemotePublicKey,
+        });
     }
     public updateHarvestingRequestStatus(accountAddress: string, delegatedHarvestingRequestFailed: boolean) {
         this.$store.dispatch('harvesting/UPDATE_HARVESTING_REQUEST_STATUS', { accountAddress, delegatedHarvestingRequestFailed });

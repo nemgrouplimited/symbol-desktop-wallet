@@ -17,6 +17,16 @@ import { HarvestingModel } from '@/core/database/entities/HarvestingModel';
 import { NodeModel } from '@/core/database/entities/NodeModel';
 import { HarvestingModelStorage } from '@/core/database/storage/HarvestingModelStorage';
 
+export interface RemoteKeyInfo {
+    newEncRemotePrivateKey: string;
+    newRemotePublicKey: string;
+}
+
+export interface VrfKeyInfo {
+    newEncVrfPrivateKey: string;
+    newVrfPublicKey: string;
+}
+
 export class HarvestingService {
     private readonly harvestingStorage = HarvestingModelStorage.INSTANCE;
 
@@ -52,6 +62,10 @@ export class HarvestingService {
     }
     public updateVrfKey(harvestingModel: HarvestingModel, encVrfPrivateKey: string) {
         this.saveHarvestingModel(Object.assign(harvestingModel, { encVrfPrivateKey }));
+    }
+
+    public updateNewAccountLinkKeyInfo(harvestingModel: HarvestingModel, options: RemoteKeyInfo | VrfKeyInfo) {
+        this.saveHarvestingModel(Object.assign(harvestingModel, { ...options }));
     }
 
     public updateIsPersistentDelReqSent(harvestingModel: HarvestingModel, isPersistentDelReqSent: boolean) {
